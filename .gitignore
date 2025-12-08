@@ -266,3 +266,4 @@ installer.iss
 build_inno.bat
 __pycache__/GUIplotLoadData.cpython-311.pyc
 Output
+app.log

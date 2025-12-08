@@ -2012,12 +2012,18 @@ class KhQuantFramework:
                             if self.trader_callback:
                                 self.trader_callback.gui.log_message(f"执行盘后回调时出错: {str(e)}", "ERROR")
                     time_stats["盘后回调"] += time.time() - post_market_start
-                    
+
                     # 更新当前日期
                     current_date = time_info["date"]
                     day_start_time = time_info["timestamp"]
                     day_data = current_data
-                    
+
+                    # T+1模式下，新交易日将 can_use_volume 更新为 volume
+                    if not self.trade_mgr.t0_mode:
+                        for code, pos in self.trade_mgr.positions.items():
+                            if pos.get("volume", 0) > 0:
+                                pos["can_use_volume"] = pos["volume"]
+
                     # 检查是否需要执行盘前回调
                     pre_market_start = time.time()
                     if pre_market_enabled and hasattr(self.strategy_module, 'khPreMarket'):

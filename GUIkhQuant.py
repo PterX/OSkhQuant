@@ -4707,15 +4707,36 @@ def khHandlebar(context):
     def check_file_in_internal_dir(self, file_path):
         """检测文件是否保存在软件安装目录的_internal文件夹内
 
-        注意：此方法仅在源码模式下返回False，不进行检测
-
         Args:
             file_path: 要检测的文件路径
 
         Returns:
-            bool: 始终返回False（源码模式下不需要此检测）
+            bool: 如果文件在_internal目录内返回True，否则返回False
         """
-        return False
+        if not file_path:
+            return False
+
+        # 只在打包环境下检测
+        if not getattr(sys, 'frozen', False):
+            return False
+
+        try:
+            # 获取打包环境的_internal目录
+            if hasattr(sys, '_MEIPASS'):
+                internal_dir = sys._MEIPASS
+            else:
+                # 如果没有_MEIPASS，使用可执行文件所在目录的_internal子目录
+                exe_dir = os.path.dirname(sys.executable)
+                internal_dir = os.path.join(exe_dir, '_internal')
+
+            # 标准化路径进行比较
+            file_path_normalized = os.path.normpath(os.path.abspath(file_path)).lower()
+            internal_dir_normalized = os.path.normpath(os.path.abspath(internal_dir)).lower()
+
+            # 检查文件是否在_internal目录下
+            return file_path_normalized.startswith(internal_dir_normalized)
+        except Exception:
+            return False
 
     def show_internal_dir_warning(self, config_file_path, strategy_file_path):
         """显示文件保存在_internal目录的警告对话框
@@ -4788,12 +4809,18 @@ def khHandlebar(context):
 
     def get_user_strategies_dir(self):
         """获取用户策略文件目录路径"""
-        # 使用项目目录下的strategies目录
-        strategies_dir = os.path.join(os.path.dirname(__file__), 'strategies')
-
+        # 获取用户数据目录
+        if os.name == 'nt':  # Windows
+            user_data_dir = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'KhQuant')
+        else:  # Linux/Mac
+            user_data_dir = os.path.join(os.path.expanduser('~'), '.khquant')
+        
+        # 策略文件目录
+        strategies_dir = os.path.join(user_data_dir, 'strategies')
+        
         # 确保目录存在
         os.makedirs(strategies_dir, exist_ok=True)
-
+        
         return strategies_dir
 
     def init_user_strategies(self):
@@ -4801,7 +4828,12 @@ def khHandlebar(context):
         user_strategies_dir = self.get_user_strategies_dir()
 
         # 获取程序内置的默认策略文件路径
-        default_strategies_dir = os.path.join(os.path.dirname(__file__), 'strategies')
+        if getattr(sys, 'frozen', False):
+            # 打包环境 - 使用_internal目录
+            default_strategies_dir = os.path.join(sys._MEIPASS, 'strategies')
+        else:
+            # 开发环境 - 使用项目目录
+            default_strategies_dir = os.path.join(os.path.dirname(__file__), 'strategies')
 
         # 如果用户策略目录为空，复制默认策略文件
         if os.path.exists(default_strategies_dir):
@@ -5284,7 +5316,12 @@ def main():
         
         # 获取图标路径函数
         def get_app_icon_path(icon_name):
-            return os.path.join(os.path.dirname(__file__), 'icons', icon_name)
+            if getattr(sys, 'frozen', False):
+                # 打包环境 - 使用_internal目录
+                return os.path.join(sys._MEIPASS, 'icons', icon_name)
+            else:
+                # 开发环境 - 使用项目目录
+                return os.path.join(os.path.dirname(__file__), 'icons', icon_name)
 
         # 设置应用程序图标
         icon_file = get_app_icon_path('stock_icon.ico')
@@ -5303,7 +5340,12 @@ def main():
                 logging.warning(f"图标文件不存在: {icon_file} 和 {icon_file_png}")
 
         # 获取图标目录路径（用于启动画面）
-        icon_path = os.path.join(os.path.dirname(__file__), 'icons')
+        if getattr(sys, 'frozen', False):
+            # 打包环境 - 使用_internal目录
+            icon_path = os.path.join(sys._MEIPASS, 'icons')
+        else:
+            # 开发环境 - 使用项目目录
+            icon_path = os.path.join(os.path.dirname(__file__), 'icons')
             
         logging.info(f"图标目录路径: {icon_path}")
             
